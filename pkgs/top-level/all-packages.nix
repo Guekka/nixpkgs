@@ -1408,6 +1408,8 @@ with pkgs;
 
   midi-trigger = callPackage ../applications/audio/midi-trigger { };
 
+  monica = callPackage ../servers/web-apps/monica { };
+
   mprocs = callPackage ../tools/misc/mprocs { };
 
   nominatim = callPackage ../servers/nominatim { };
