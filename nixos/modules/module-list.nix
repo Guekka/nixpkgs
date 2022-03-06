@@ -1177,6 +1177,7 @@
   ./services/web-servers/mighttpd2.nix
   ./services/web-servers/minio.nix
   ./services/web-servers/molly-brown.nix
+  ./services/web-apps/monica.nix
   ./services/web-servers/nginx/default.nix
   ./services/web-servers/nginx/gitweb.nix
   ./services/web-servers/phpfpm/default.nix
