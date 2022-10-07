@@ -416,4 +416,5 @@ in
     update-channel = products.webstorm.update-channel;
   };
 
+  plugins = callPackage ./plugins.nix {};
 }

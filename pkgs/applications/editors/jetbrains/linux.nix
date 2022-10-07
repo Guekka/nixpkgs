@@ -3,7 +3,18 @@
 , vmopts ? null
 }:
 
-{ pname, product, productShort ? product, version, src, wmClass, jdk, meta, extraLdPath ? [], extraWrapperArgs ? [] }@args:
+{ pname
+, product
+, productShort ? product
+, version
+, src
+, wmClass
+, jdk
+, meta
+, extraLdPath ? []
+, extraWrapperArgs ? []
+, plugins ? []
+}@args:
 
 with lib;
 
@@ -15,7 +26,7 @@ let loName = toLower productShort;
 in
 
 with stdenv; lib.makeOverridable mkDerivation (rec {
-  inherit pname version src;
+  inherit pname version src plugins;
   meta = args.meta // { mainProgram = pname; };
 
   desktopItem = makeDesktopItem {
@@ -63,6 +74,11 @@ with stdenv; lib.makeOverridable mkDerivation (rec {
 
     mkdir -p $out/{bin,$pname,share/pixmaps,libexec/${pname}}
     cp -a . $out/$pname
+    IFS=' ' read -ra pluginArray <<< "$plugins"
+    for plugin in "''${pluginArray[@]}"
+    do
+        ln -s "$plugin" -t $out/$pname/plugins/
+    done
     ln -s $out/$pname/bin/${loName}.png $out/share/pixmaps/${pname}.png
     mv bin/fsnotifier* $out/libexec/${pname}/.
 
