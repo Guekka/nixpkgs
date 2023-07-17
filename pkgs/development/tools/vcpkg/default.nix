@@ -48,6 +48,7 @@ stdenv.mkDerivation rec {
 
     if [[ ! -f "$vcpkg_root_path/vcpkg.disable-metrics" ]]; then
       touch $out/share/vcpkg/vcpkg.disable-metrics
+      touch $vcpkg_root_path/vcpkg.disable-metrics
     fi
     
     # Always take control of the root by linking current triplets
