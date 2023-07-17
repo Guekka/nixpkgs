@@ -3,7 +3,6 @@
 , stdenv
 , jq
 , runtimeShell
-, callPackage
 , lib
 , vcpkg-tool
 }:
@@ -19,9 +18,6 @@ stdenv.mkDerivation rec {
   };
 
   nativeBuildInputs = [
-    cmake
-    cmakerc
-    fmt
     makeWrapper
   ];
 
@@ -85,21 +81,11 @@ stdenv.mkDerivation rec {
   ];
 
   postInstall = ''
-    mkdir -p $out/share/vcpkg
-
-    cp --preserve=mode -r ${src}/{docs,ports,scripts,triplets,versions,LICENSE.txt} $out/share/vcpkg
-
-    # we preserve the original vcpkg binary, and replace it with a wrapper script
-    mv $out/bin/vcpkg $out/share/vcpkg/vcpkg
+    mkdir -p $out/bin $out/share/vcpkg/scripts/buildsystems
+    cp --preserve=mode -r ${src}/{docs,ports,triplets,scripts,.vcpkg-root,versions,LICENSE.txt} $out/share/vcpkg/
     cp $vcpkgScriptPath $out/bin/vcpkg
     chmod +x $out/bin/vcpkg
-
-    mkdir -p $out/bin
-    mkdir -p $out/share/vcpkg/scripts/buildsystems
-    cp --preserve=mode -r ${src}/{docs,ports,triplets,scripts,.vcpkg-root,versions,LICENSE.txt} $out/share/vcpkg
-    cp $vcpkgScriptPath $out/bin/vcpkg
     ln -s $out/bin/vcpkg $out/share/vcpkg/vcpkg
-    chmod +x $out/bin/vcpkg
     touch $out/share/vcpkg/vcpkg.disable-metrics
   '';
 
