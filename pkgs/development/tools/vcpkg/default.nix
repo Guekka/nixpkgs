@@ -1,67 +1,17 @@
-{ autoconf
-, automake
-, bash
-, cacert
-, cmake
-, cmakerc
-, coreutils
-, curl
-, fetchFromGitHub
-, fmt
-, gcc
-, git
-, gnumake
-, gzip
-, jq
-, lib
+{ fetchFromGitHub
 , makeWrapper
-, meson
-, ninja
-, perl
-, pkg-config
-, python3
-, runtimeShell
 , stdenv
-, zip
-, zstd
+, jq
+, runtimeShell
+, callPackage
+, lib
+, vcpkg-tool
 }:
-let
-  # These are the most common binaries used by vcpkg
-  # If a port requires a binary that is not in this list,
-  # it can be added by an overlay
-  runtimeDeps = [
-    autoconf
-    automake
-    bash
-    cacert
-    coreutils
-    curl
-    cmake
-    gcc
-    git
-    gnumake
-    gzip
-    meson
-    ninja
-    perl
-    pkg-config
-    python3
-    zip
-    zstd
-  ];
-in
 stdenv.mkDerivation rec {
   pname = "vcpkg";
-  version = "2023-06-22";
+  version = "2023.06.20";
 
   src = fetchFromGitHub {
-    owner = "microsoft";
-    repo = "vcpkg-tool";
-    rev = "2023-06-22";
-    hash = "sha256-/Bn2TW6JWU676NzsQdtC6G513MtRHblLVP0pK5jyCWc=";
-  };
-
-  vcpkg_data = fetchFromGitHub {
     owner = "microsoft";
     repo = "vcpkg";
     rev = "2023.06.20";
@@ -75,11 +25,6 @@ stdenv.mkDerivation rec {
     makeWrapper
   ];
 
-  cmakeFlags = [
-    "-DVCPKG_DEPENDENCY_EXTERNAL_FMT=ON"
-    "-DVCPKG_DEPENDENCY_CMAKERC=ON"
-  ];
-
   # vcpkg needs to be able to write to VCPKG_ROOT, and requires the executable to be in VCPKG_ROOT
   # One way to achieve that would be to write a nixos module, but it would be better to be able to
   # use vcpkg in a nix-shell
@@ -90,37 +35,44 @@ stdenv.mkDerivation rec {
       out = placeholder "out";
     in
     ''
-      #!${runtimeShell}
+    #!${runtimeShell}
+    vcpkg_root_path="$HOME/.vcpkg/root/"
 
-      # make one root directory per vcpkg version
-      vcpkg_hash=$(echo -n "${out}" | sha256sum | cut -f1 -d ' ')
-      vcpkg_root_path="$HOME/.local/vcpkg/roots/$vcpkg_hash"
+    if [[ ! -d "$vcpkg_root_path" ]]; then
+      mkdir -p "$vcpkg_root_path"
+    fi
+    
+    if [[ ! -f "$vcpkg_root_path/.vcpkg-root" ]]; then
+      touch "$vcpkg_root_path/.vcpkg-root"
+    fi
 
-      # create the root directory if it doesn't exist, and create symlinks to the vcpkg data
-      if [[ ! -d $vcpkg_root_path ]]; then
-        mkdir -p $vcpkg_root_path
+    if [[ ! -f "$vcpkg_root_path/vcpkg.disable-metrics" ]]; then
+      touch $out/share/vcpkg/vcpkg.disable-metrics
+    fi
+    
+    # Always take control of the root by linking current triplets
+    # We should sent a MR to vcpkg-tool to add an argument to set the builtin-triplets
+    rm -f "$vcpkg_root_path/triplets"
+    ln -s ${out}/share/vcpkg/triplets "$vcpkg_root_path"
+    
+    # vcpkg needs to copy its own licence file for some reason.
+    # If vcpkg can understand that we can set the root in a immutable filesystem,
+    # we'll be able to drop this one
+    rm -f "$vcpkg_root_path/LICENSE.txt"
+    ln -s ${out}/share/vcpkg/LICENSE.txt "$vcpkg_root_path"
+    
+    # TODO: Make it change the root only if the vcpkg-root is either unset or set to the share dir
+    # If we do that, we'll be able to drop the patch
+    ${vcpkg-tool}/bin/vcpkg \
+      --vcpkg-root="$vcpkg_root_path" \
+      --x-scripts-root="${out}/share/vcpkg/scripts" \
+      --x-builtin-ports-root="${out}/share/vcpkg/ports" \
+      --x-builtin-registry-versions-dir="${out}/share/vcpkg/versions" "$@"
+  '';
 
-        ln -s ${out}/share/vcpkg/{docs,ports,scripts,triplets,versions,LICENSE.txt} $vcpkg_root_path/
-        ln -s ${out}/bin/vcpkg $vcpkg_root_path/
+  vcpkgPatchRemoveRootArgument = builtins.readFile ./patches/remove-root-argument.diff;
 
-        # this file is used as a lock by vcpkg, so it needs to be writable
-        touch $vcpkg_root_path/.vcpkg-root
-      fi
-
-      # add a special flag to tell the user where the root is. This can be used by nix-shell for
-      # finding the cmake toolchain file
-      if [[ "$1" == "--root-for-nix-usage" ]]; then
-        echo "$vcpkg_root_path"
-        exit 0
-      fi
-
-      export VCPKG_FORCE_SYSTEM_BINARIES=1
-      export VCPKG_ROOT="$vcpkg_root_path"
-      export VCPKG_DOWNLOADS="$vcpkg_root_path/downloads"
-      exec ${out}/share/vcpkg/vcpkg "$@"
-    '';
-
-  passAsFile = [ "vcpkgScript" ];
+  passAsFile = [ "vcpkgScript" "vcpkgPatchRemoveRootArgument" ];
 
   # This list contains the ports that fail to build
   # They are replaced by a dummy port that will tell the user to install them with Nix
@@ -134,12 +86,20 @@ stdenv.mkDerivation rec {
   postInstall = ''
     mkdir -p $out/share/vcpkg
 
-    cp --preserve=mode -r ${vcpkg_data}/{docs,ports,scripts,triplets,versions,LICENSE.txt} $out/share/vcpkg
+    cp --preserve=mode -r ${src}/{docs,ports,scripts,triplets,versions,LICENSE.txt} $out/share/vcpkg
 
     # we preserve the original vcpkg binary, and replace it with a wrapper script
     mv $out/bin/vcpkg $out/share/vcpkg/vcpkg
     cp $vcpkgScriptPath $out/bin/vcpkg
     chmod +x $out/bin/vcpkg
+
+    mkdir -p $out/bin
+    mkdir -p $out/share/vcpkg/scripts/buildsystems
+    cp --preserve=mode -r ${src}/{docs,ports,triplets,scripts,.vcpkg-root,versions,LICENSE.txt} $out/share/vcpkg
+    cp $vcpkgScriptPath $out/bin/vcpkg
+    ln -s $out/bin/vcpkg $out/share/vcpkg/vcpkg
+    chmod +x $out/bin/vcpkg
+    touch $out/share/vcpkg/vcpkg.disable-metrics
   '';
 
   postFixup = ''
@@ -160,14 +120,13 @@ stdenv.mkDerivation rec {
       mv result.json $manifest
     done
 
-    # add the runtime dependencies to the PATH
-    wrapProgram $out/share/vcpkg/vcpkg --set PATH ${lib.makeBinPath runtimeDeps}
+    patch -i $vcpkgPatchRemoveRootArgumentPath $out/share/vcpkg/scripts/buildsystems/vcpkg.cmake
   '';
 
   meta = with lib; {
     description = "C++ Library Manager";
     homepage = "https://vcpkg.io/";
     license = licenses.mit;
-    maintainers = with maintainers; [ guekka ];
+    maintainers = with maintainers; [ guekka gracicot ];
   };
 }
