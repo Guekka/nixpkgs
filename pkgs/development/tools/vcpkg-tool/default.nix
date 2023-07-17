@@ -12,7 +12,6 @@
 , git
 , gnumake
 , gzip
-, jq
 , lib
 , makeWrapper
 , meson
@@ -20,9 +19,7 @@
 , perl
 , pkg-config
 , python3
-, runtimeShell
 , stdenv
-, vcpkg-tool
 , zip
 , zstd
 }:
