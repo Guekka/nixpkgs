@@ -64,6 +64,7 @@ stdenv.mkDerivation {
     cmakerc
     fmt
     ninja
+    makeWrapper
   ];
 
   cmakeFlags = [
