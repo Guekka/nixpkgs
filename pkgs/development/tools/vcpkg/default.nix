@@ -43,7 +43,6 @@ stdenv.mkDerivation rec {
     fi
 
     if [[ ! -f "$vcpkg_root_path/vcpkg.disable-metrics" ]]; then
-      touch $out/share/vcpkg/vcpkg.disable-metrics
       touch $vcpkg_root_path/vcpkg.disable-metrics
     fi
     
