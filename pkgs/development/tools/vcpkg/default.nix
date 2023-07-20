@@ -32,7 +32,7 @@ stdenv.mkDerivation rec {
     in
     ''
     #!${runtimeShell}
-    vcpkg_root_path="$HOME/.vcpkg/root/"
+    vcpkg_root_path="$HOME/.local/share/vcpkg/root/"
 
     if [[ ! -d "$vcpkg_root_path" ]]; then
       mkdir -p "$vcpkg_root_path"
