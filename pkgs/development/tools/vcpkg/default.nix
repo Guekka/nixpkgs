@@ -36,14 +36,8 @@ stdenv.mkDerivation rec {
 
     if [[ ! -d "$vcpkg_root_path" ]]; then
       mkdir -p "$vcpkg_root_path"
-    fi
-    
-    if [[ ! -f "$vcpkg_root_path/.vcpkg-root" ]]; then
       touch "$vcpkg_root_path/.vcpkg-root"
-    fi
-
-    if [[ ! -f "$vcpkg_root_path/vcpkg.disable-metrics" ]]; then
-      touch $vcpkg_root_path/vcpkg.disable-metrics
+      touch "$vcpkg_root_path/vcpkg.disable-metrics"
     fi
     
     # Always take control of the root by linking current triplets
